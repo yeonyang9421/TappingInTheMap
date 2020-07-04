@@ -48,6 +48,7 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.TooManyListenersException;
 
 public class MainActivity2 extends AppCompatActivity implements OnMapReadyCallback {
     private GoogleMap mMap;
@@ -136,16 +137,13 @@ public class MainActivity2 extends AppCompatActivity implements OnMapReadyCallba
 //                    EventBus.getDefault().post(new EventItem(mlat, mlon, mAddress));
 
                     viewModel = ViewModelProviders.of(MainActivity2.this).get(CoronaViewModel.class);
-                    viewModel.fetchCorona(mlat, mlon, 5000, 7);
-                    viewModel.coronaInfos.observe(MainActivity2.this, new Observer<CoronaInfo>() {
+                    viewModel.fetchLocations();
+                    viewModel.locationInfos.observe(MainActivity2.this, new Observer<List<com.example.tappinginthemap.model.Location>>() {
                         @Override
-                        public void onChanged(@Nullable CoronaInfo coronaInfos) {
-                            String today = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss").format(new Date(System.currentTimeMillis()));
-                            coronaPatientInfo = "=> " + (coronaInfos.getPatient().getId());
+                        public void onChanged(List<com.example.tappinginthemap.model.Location> locations) {
+                            Toast.makeText(MainActivity2.this, "" + locations, Toast.LENGTH_SHORT).show();
                         }
-
                     });
-
 
                 } catch (IOException e) {
                     e.printStackTrace();

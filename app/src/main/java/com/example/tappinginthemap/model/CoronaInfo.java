@@ -6,6 +6,12 @@ public class CoronaInfo {
     private Patient patient;
     private java.util.List<Location> location = null;
 
+
+    public CoronaInfo(Patient patient, List<Location> location) {
+        this.patient = patient;
+        this.location = location;
+    }
+
     public Patient getPatient() {
         return patient;
     }

@@ -1,5 +1,7 @@
 package com.example.tappinginthemap;
 
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.FragmentActivity;
 
@@ -14,6 +16,11 @@ import android.widget.Toast;
 import com.directions.route.Route;
 import com.directions.route.RouteException;
 import com.directions.route.RoutingListener;
+import com.example.tappinginthemap.model.MyItem;
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.location.FusedLocationProviderClient;
+import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -23,6 +30,7 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
+import com.google.maps.android.clustering.ClusterManager;
 
 import org.json.JSONObject;
 
@@ -36,7 +44,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback{
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,
+        GoogleApiClient.ConnectionCallbacks,
+        GoogleApiClient.OnConnectionFailedListener {
 
     private GoogleMap mMap;
     private LatLng mOrigin;
@@ -44,6 +54,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private Polyline mPolyline;
     ArrayList<LatLng> mMarkerPoints;
     private static final int MY_PERMISSIONS_REQUEST_FINE_LOCATION = 1000;
+    private ClusterManager<MyItem> mClusterManager;
+    private FusedLocationProviderClient mFusedLocationClient;
+    private Polyline mPath;
+    private  PolylineOptions mPolyLine;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,10 +65,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         setContentView(R.layout.activity_maps);
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
-                .findFragmentById(R.id.map);
-        mapFragment.getMapAsync(this);
+                .findFragmentById(R.id.maps);
+        if (mapFragment != null) {
+            mapFragment.getMapAsync(this);
+        }
 
         mMarkerPoints = new ArrayList<>();
+        mFusedLocationClient= LocationServices.getFusedLocationProviderClient(this);
+        mPolyLine =  new PolylineOptions();
     }
 
     /**
@@ -70,6 +88,10 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
+        mClusterManager = new ClusterManager<>(this, mMap);
+        mMap.setOnCameraIdleListener(mClusterManager);
+        mMap.setOnMarkerClickListener(mClusterManager);
+
         mMap.setOnMapClickListener(new GoogleMap.OnMapClickListener() {
             @Override
             public void onMapClick(LatLng point) {
@@ -80,7 +102,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 }
 
                 // Adding new item to the ArrayList
-                mMarkerPoints.add(point);
+//                mMarkerPoints.add(point);
 
                 // Creating MarkerOptions
                 MarkerOptions options = new MarkerOptions();
@@ -105,7 +127,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 if (mMarkerPoints.size() >= 2) {
                     mOrigin = mMarkerPoints.get(0);
                     mDestination = mMarkerPoints.get(1);
-                    drawRoute();
+//                    drawRoute();
                 }
 
             }
@@ -127,7 +149,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mMap.setMyLocationEnabled(true);
         }
         //====================================================
-        LatLng SEOUL = new LatLng(372768332, 127.1576346);
+        LatLng SEOUL = new LatLng(37.2706008, 127.01357559999997);
         MarkerOptions markerOptions = new MarkerOptions();
         markerOptions.position(SEOUL);
         markerOptions.title("서울");
@@ -135,7 +157,44 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mMap.addMarker(markerOptions);
         mMap.moveCamera(CameraUpdateFactory.newLatLng(SEOUL));
         mMap.animateCamera(CameraUpdateFactory.zoomTo(13));
+        // Style the polyline
+
+        addItems();
     }
+
+    private void addItems(){
+        double lat = 37.2706008;
+        double lng = 127.01357559999997;
+        LatLng start = new LatLng(lat, lng);
+        mMap.addPolyline(mPolyLine.add(start));
+
+        for (int i = 0; i < 10; i++) {
+            double offset = i /60d;
+            lat = lat + offset;
+            lng = lng + offset;
+            MyItem offItemd= new MyItem(lat, lng);
+            mPolyLine.add(new LatLng(lat, lng));
+            mMap.addPolyline(mPolyLine);
+//            mPath.setWidth(10);
+//            mPath.setColor(Color.parseColor("#FF0000"));
+            mClusterManager.addItem(offItemd);
+
+        }
+    }
+
+
+    private Polyline getmPath(LatLng latLng) {
+        return mMap.addPolyline(new PolylineOptions()
+                .add(
+                        new LatLng(latLng.latitude, latLng.longitude)
+//                        new LatLng(38.439802, 127.12773),
+//                        new LatLng(38.439803, 127.12773),
+//                        new LatLng(38.439804, 127.12773),
+//                        new LatLng(38.439805, 127.12773)
+                )
+        );
+    }
+
 
     private void drawRoute() {
 
@@ -211,6 +270,21 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             urlConnection.disconnect();
         }
         return data;
+    }
+
+    @Override
+    public void onConnected(@Nullable Bundle bundle) {
+
+    }
+
+    @Override
+    public void onConnectionSuspended(int i) {
+
+    }
+
+    @Override
+    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
+
     }
 
 /*
